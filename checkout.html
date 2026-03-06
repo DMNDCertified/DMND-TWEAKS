@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DMND Pro — Checkout</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://js.stripe.com/v3/"></script>
+    <style>
+        :root {
+            --bg-dark: #09090b;
+            --text-main: #ffffff;
+            --text-muted: #a1a1aa;
+            --accent-blue: #2563eb;
+            --accent-hover: #1d4ed8;
+            --card-bg: #18181b;
+            --border-color: #27272a;
+            --font-stack: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+
+        *, *::before, *::after {
+            margin: 0; padding: 0;
+            box-sizing: border-box;
+            font-family: var(--font-stack);
+        }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            line-height: 1.5;
+            min-height: 100vh;
+        }
+
+        /* subtle grid bg */
+        body::before {
+            content: '';
+            position: fixed; inset: 0; z-index: -1;
+            background-image:
+                linear-gradient(var(--border-color) 1px, transparent 1px),
+                linear-gradient(90deg, var(--border-color) 1px, transparent 1px);
+            background-size: 40px 40px;
+            opacity: .025;
+            pointer-events: none;
+        }
+
+        /* ── NAVBAR ── */
+        .navbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1.1rem 5%;
+            border-bottom: 1px solid var(--border-color);
+            background-color: rgba(9, 9, 11, 0.85);
+            backdrop-filter: blur(14px);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .logo {
+            font-weight: 700;
+            font-size: 1.15rem;
+            letter-spacing: -0.5px;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--text-main);
+            text-decoration: none;
+        }
+
+        .logo-icon {
+            width: 26px; height: 26px;
+            background: linear-gradient(135deg, #60a5fa, #2563eb);
+            border-radius: 6px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: .7rem; font-weight: 800; color: #fff;
+        }
+
+        .nav-back {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: .4rem;
+            transition: color .2s;
+        }
+        .nav-back:hover { color: var(--text-main); }
+
+        /* ── CHECKOUT LAYOUT ── */
+        .checkout-wrapper {
+            max-width: 960px;
+            margin: 3rem auto;
+            padding: 0 5%;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2.5rem;
+            align-items: start;
+        }
+
+        @media (max-width: 700px) {
+            .checkout-wrapper {
+                grid-template-columns: 1fr;
+                margin: 1.5rem auto;
+            }
+        }
+
+        /* ── ORDER SUMMARY (LEFT) ── */
+        .order-summary {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            padding: 2rem;
+            position: sticky;
+            top: 90px;
+        }
+
+        .order-label {
+            font-size: .7rem;
+            font-weight: 600;
+            color: #60a5fa;
+            letter-spacing: .1em;
+            text-transform: uppercase;
+            margin-bottom: 1.5rem;
+        }
+
+        .product-row {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .product-icon {
+            width: 48px; height: 48px;
+            background: linear-gradient(135deg, rgba(37,99,235,.3), rgba(124,58,237,.2));
+            border: 1px solid rgba(37,99,235,.3);
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.4rem;
+            flex-shrink: 0;
+        }
+
+        .product-info h3 {
+            font-size: 1rem;
+            font-weight: 700;
+            margin-bottom: .2rem;
+        }
+
+        .product-info p {
+            font-size: .82rem;
+            color: var(--text-muted);
+        }
+
+        .pro-badge-sm {
+            display: inline-block;
+            background: var(--accent-blue);
+            color: #fff;
+            font-size: .65rem;
+            font-weight: 700;
+            padding: .1rem .45rem;
+            border-radius: 20px;
+            margin-left: .4rem;
+            vertical-align: middle;
+        }
+
+        .feature-list {
+            list-style: none;
+            margin-bottom: 1.5rem;
+        }
+
+        .feature-list li {
+            display: flex;
+            align-items: center;
+            gap: .6rem;
+            font-size: .88rem;
+            color: var(--text-muted);
+            margin-bottom: .7rem;
+        }
+
+        .feature-list li::before {
+            content: '✓';
+            color: #10b981;
+            font-weight: 700;
+            font-size: .85rem;
+            flex-shrink: 0;
+        }
+
+        .price-breakdown {
+            border-top: 1px solid var(--border-color);
+            padding-top: 1.2rem;
+        }
+
+        .price-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: .88rem;
+            color: var(--text-muted);
+            margin-bottom: .5rem;
+        }
+
+        .price-row.total {
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: var(--text-main);
+            margin-top: .5rem;
+            padding-top: .5rem;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .price-row .amount { color: var(--text-main); font-weight: 500; }
+        .price-row.total .amount { color: #60a5fa; }
+
+        .guarantee {
+            margin-top: 1.2rem;
+            background: rgba(16,185,129,.05);
+            border: 1px solid rgba(16,185,129,.15);
+            border-radius: 8px;
+            padding: .8rem 1rem;
+            display: flex;
+            align-items: center;
+            gap: .6rem;
+            font-size: .8rem;
+            color: rgba(16,185,129,.9);
+        }
+
+        /* ── PAYMENT PANEL (RIGHT) ── */
+        .payment-panel {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            padding: 2rem;
+        }
+
+        .payment-panel h2 {
+            font-size: 1.3rem;
+            font-weight: 700;
+            margin-bottom: .4rem;
+        }
+
+        .payment-panel > p {
+            font-size: .88rem;
+            color: var(--text-muted);
+            margin-bottom: 1.8rem;
+        }
+
+        /* ── FORM FIELDS ── */
+        .field-group {
+            margin-bottom: 1.2rem;
+        }
+
+        .field-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        label {
+            display: block;
+            font-size: .8rem;
+            font-weight: 500;
+            color: var(--text-muted);
+            margin-bottom: .45rem;
+        }
+
+        input[type="text"],
+        input[type="email"] {
+            width: 100%;
+            background: #0f0f12;
+            border: 1px solid var(--border-color);
+            border-radius: 7px;
+            color: var(--text-main);
+            font-size: .9rem;
+            padding: .65rem .9rem;
+            transition: border-color .2s, box-shadow .2s;
+            outline: none;
+        }
+
+        input[type="text"]:focus,
+        input[type="email"]:focus {
+            border-color: var(--accent-blue);
+            box-shadow: 0 0 0 3px rgba(37,99,235,.15);
+        }
+
+        input::placeholder { color: rgba(161,161,170,.45); }
+
+        /* Stripe Element container */
+        .stripe-field {
+            background: #0f0f12;
+            border: 1px solid var(--border-color);
+            border-radius: 7px;
+            padding: .7rem .9rem;
+            transition: border-color .2s, box-shadow .2s;
+        }
+
+        .stripe-field.focused {
+            border-color: var(--accent-blue);
+            box-shadow: 0 0 0 3px rgba(37,99,235,.15);
+        }
+
+        .stripe-field.error {
+            border-color: #ef4444;
+            box-shadow: 0 0 0 3px rgba(239,68,68,.12);
+        }
+
+        /* divider */
+        .divider {
+            display: flex;
+            align-items: center;
+            gap: .75rem;
+            margin: 1.5rem 0;
+            color: var(--text-muted);
+            font-size: .78rem;
+        }
+        .divider::before, .divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--border-color);
+        }
+
+        /* Stripe Express Checkout / Card */
+        #express-checkout-element {
+            margin-bottom: 1rem;
+        }
+
+        /* submit button */
+        .btn-checkout {
+            width: 100%;
+            background: var(--accent-blue);
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            padding: .85rem;
+            font-size: .95rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background .2s, transform .15s, box-shadow .2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: .5rem;
+            margin-top: 1.5rem;
+            box-shadow: 0 4px 20px rgba(37,99,235,.3);
+            letter-spacing: -.01em;
+        }
+
+        .btn-checkout:hover {
+            background: var(--accent-hover);
+            transform: translateY(-1px);
+            box-shadow: 0 6px 28px rgba(37,99,235,.4);
+        }
+
+        .btn-checkout:disabled {
+            opacity: .6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-checkout .spinner {
+            width: 16px; height: 16px;
+            border: 2px solid rgba(255,255,255,.3);
+            border-top-color: #fff;
+            border-radius: 50%;
+            animation: spin .7s linear infinite;
+            display: none;
+        }
+
+        .btn-checkout.loading .spinner { display: block; }
+        .btn-checkout.loading .btn-text { display: none; }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* error message */
+        #error-message {
+            display: none;
+            background: rgba(239,68,68,.08);
+            border: 1px solid rgba(239,68,68,.2);
+            color: #f87171;
+            border-radius: 7px;
+            padding: .7rem 1rem;
+            font-size: .85rem;
+            margin-top: 1rem;
+        }
+
+        /* security badges */
+        .security-row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 1.2rem;
+            margin-top: 1.2rem;
+            flex-wrap: wrap;
+        }
+
+        .security-badge {
+            display: flex;
+            align-items: center;
+            gap: .35rem;
+            font-size: .75rem;
+            color: rgba(161,161,170,.6);
+        }
+
+        /* ── SUCCESS STATE ── */
+        .success-screen {
+            display: none;
+            text-align: center;
+            padding: 2.5rem 1.5rem;
+        }
+
+        .success-icon {
+            width: 64px; height: 64px;
+            background: rgba(16,185,129,.1);
+            border: 2px solid rgba(16,185,129,.3);
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.8rem;
+            margin: 0 auto 1.2rem;
+        }
+
+        .success-screen h2 { font-size: 1.5rem; font-weight: 700; margin-bottom: .5rem; }
+        .success-screen p { color: var(--text-muted); font-size: .9rem; line-height: 1.6; max-width: 320px; margin: 0 auto 1.5rem; }
+
+        .btn-primary-sm {
+            display: inline-flex;
+            align-items: center;
+            gap: .4rem;
+            background: var(--accent-blue);
+            color: #fff;
+            padding: .6rem 1.4rem;
+            border-radius: 7px;
+            text-decoration: none;
+            font-size: .9rem;
+            font-weight: 600;
+            transition: background .2s;
+        }
+        .btn-primary-sm:hover { background: var(--accent-hover); }
+
+        /* ── FOOTER ── */
+        .checkout-footer {
+            text-align: center;
+            padding: 2rem 5%;
+            color: var(--text-muted);
+            font-size: .8rem;
+            border-top: 1px solid var(--border-color);
+            margin-top: 3rem;
+        }
+
+        .checkout-footer a { color: var(--text-muted); text-decoration: underline; }
+        .checkout-footer a:hover { color: var(--text-main); }
+    </style>
+</head>
+<body>
+
+    <!-- NAVBAR -->
+    <nav class="navbar">
+        <a href="index.html" class="logo">
+            <div class="logo-icon">D</div>
+            DMND Tool
+        </a>
+        <a href="index.html" class="nav-back">
+            ← Back to site
+        </a>
+    </nav>
+
+    <!-- CHECKOUT -->
+    <div class="checkout-wrapper">
+
+        <!-- LEFT: Order Summary -->
+        <div class="order-summary">
+            <div class="order-label">Order Summary</div>
+
+            <div class="product-row">
+                <div class="product-icon">⚡</div>
+                <div class="product-info">
+                    <h3>DMND Pro <span class="pro-badge-sm">PRO</span></h3>
+                    <p>Monthly subscription · Billed monthly</p>
+                </div>
+            </div>
+
+            <ul class="feature-list">
+                <li>Everything in Basic (free tier)</li>
+                <li>DMND Game Mode Active</li>
+                <li>Advanced NVIDIA GPU Installer</li>
+                <li>Custom Performance Power Plans</li>
+                <li>Exclusive AI Assistant Access</li>
+                <li>Priority Support</li>
+            </ul>
+
+            <div class="price-breakdown">
+                <div class="price-row">
+                    <span>DMND Pro (monthly)</span>
+                    <span class="amount">$4.99</span>
+                </div>
+                <div class="price-row">
+                    <span>Tax</span>
+                    <span class="amount">Calculated at checkout</span>
+                </div>
+                <div class="price-row total">
+                    <span>Total today</span>
+                    <span class="amount">$4.99/mo</span>
+                </div>
+            </div>
+
+            <div class="guarantee">
+                🛡️ Cancel anytime · No hidden fees · Secure payment
+            </div>
+        </div>
+
+        <!-- RIGHT: Payment Panel -->
+        <div class="payment-panel">
+
+            <!-- Form view -->
+            <div id="checkout-form-view">
+                <h2>Complete your order</h2>
+                <p>You'll be billed $4.99/month. Cancel anytime.</p>
+
+                <!-- Express checkout (Apple Pay / Google Pay) -->
+                <div id="express-checkout-element"></div>
+                <div class="divider" id="express-divider">or pay with card</div>
+
+                <!-- Contact -->
+                <div class="field-group">
+                    <label for="email">Email address</label>
+                    <input type="email" id="email" placeholder="you@example.com" autocomplete="email">
+                </div>
+
+                <div class="field-group field-row">
+                    <div>
+                        <label for="fname">First name</label>
+                        <input type="text" id="fname" placeholder="Alex" autocomplete="given-name">
+                    </div>
+                    <div>
+                        <label for="lname">Last name</label>
+                        <input type="text" id="lname" placeholder="Smith" autocomplete="family-name">
+                    </div>
+                </div>
+
+                <!-- Card details via Stripe Payment Element -->
+                <div class="field-group">
+                    <label>Card details</label>
+                    <div class="stripe-field" id="payment-element-container">
+                        <div id="payment-element">
+                            <!-- Stripe Payment Element mounts here -->
+                        </div>
+                    </div>
+                </div>
+
+                <div id="error-message"></div>
+
+                <button class="btn-checkout" id="submit-btn" disabled>
+                    <div class="spinner"></div>
+                    <span class="btn-text">🔒 Subscribe for $4.99/mo</span>
+                </button>
+
+                <div class="security-row">
+                    <span class="security-badge">🔒 SSL Encrypted</span>
+                    <span class="security-badge">💳 Powered by Stripe</span>
+                    <span class="security-badge">🛡️ PCI Compliant</span>
+                </div>
+            </div>
+
+            <!-- Success view (shown after payment) -->
+            <div class="success-screen" id="success-view">
+                <div class="success-icon">✓</div>
+                <h2>You're all set!</h2>
+                <p>Welcome to DMND Pro. Your subscription is active — check your email for your receipt and download link.</p>
+                <a href="index.html" class="btn-primary-sm">← Back to DMND Tool</a>
+            </div>
+
+        </div>
+    </div>
+
+    <footer class="checkout-footer">
+        © 2026 DMND Tool · <a href="#">Terms of Service</a> · <a href="#">Privacy Policy</a> · <a href="#">Refund Policy</a>
+    </footer>
+
+    <script>
+    // ══════════════════════════════════════════════════════════════════
+    //  DMND PRO — STRIPE CHECKOUT INTEGRATION
+    //  Uses: Stripe Checkout Sessions API (best practice)
+    //
+    //  HOW TO SET UP:
+    //  1. Replace YOUR_STRIPE_PUBLISHABLE_KEY below with your real key
+    //     from https://dashboard.stripe.com/apikeys
+    //
+    //  2. On your SERVER, create a Checkout Session like this (Node.js):
+    //
+    //     const session = await stripe.checkout.sessions.create({
+    //       mode: 'subscription',
+    //       line_items: [{ price: 'price_YOUR_PRICE_ID', quantity: 1 }],
+    //       success_url: 'https://yourdomain.github.io/checkout.html?success=true',
+    //       cancel_url:  'https://yourdomain.github.io/checkout.html?canceled=true',
+    //       customer_email: customerEmail, // optional, pre-fills email
+    //     });
+    //     res.json({ url: session.url }); // redirect client to session.url
+    //
+    //  3. Or use Stripe's no-code Payment Links from:
+    //     https://dashboard.stripe.com/payment-links
+    //     (simplest option for GitHub Pages — no server needed)
+    //
+    //  CURRENT MODE: This page shows the UI with embedded Payment Element.
+    //  To go fully live without a server, replace the button's onclick
+    //  with a redirect to your Stripe Payment Link URL.
+    // ══════════════════════════════════════════════════════════════════
+
+    const STRIPE_PUBLISHABLE_KEY = 'pk_test_YOUR_KEY_HERE'; // 🔑 Replace this
+
+    // ── Check for success/cancel redirects from Stripe ──
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('success') === 'true') {
+        document.getElementById('checkout-form-view').style.display = 'none';
+        document.getElementById('success-view').style.display = 'block';
+    }
+
+    // ── Initialize Stripe ──
+    let stripe, elements, paymentElement;
+
+    async function initStripe() {
+        stripe = Stripe(STRIPE_PUBLISHABLE_KEY);
+
+        // ────────────────────────────────────────────────
+        // OPTION A: Full embedded Payment Element
+        // Requires a server endpoint that creates a
+        // Checkout Session or PaymentIntent and returns
+        // the clientSecret. Uncomment and fill in below:
+        //
+        // const res = await fetch('/api/create-subscription', {
+        //     method: 'POST',
+        //     headers: { 'Content-Type': 'application/json' },
+        //     body: JSON.stringify({ email: document.getElementById('email').value })
+        // });
+        // const { clientSecret } = await res.json();
+        //
+        // elements = stripe.elements({ clientSecret, appearance });
+        // paymentElement = elements.create('payment');
+        // paymentElement.mount('#payment-element');
+        // paymentElement.on('ready', () => {
+        //     document.getElementById('submit-btn').disabled = false;
+        // });
+        // ────────────────────────────────────────────────
+
+        // OPTION B (Recommended for GitHub Pages — no server needed):
+        // Use Stripe Payment Links. Replace the button click below.
+        document.getElementById('submit-btn').disabled = false;
+        document.getElementById('submit-btn').addEventListener('click', handleCheckout);
+
+        // Show a placeholder in the card field area
+        document.getElementById('payment-element').innerHTML =
+            `<div style="font-size:.82rem;color:rgba(161,161,170,.5);padding:.2rem 0">
+                Card fields will appear here once your Stripe key is connected.
+             </div>`;
+
+        // Hide express checkout if not configured
+        document.getElementById('express-checkout-element').style.display = 'none';
+        document.getElementById('express-divider').style.display = 'none';
+    }
+
+    async function handleCheckout() {
+        const btn = document.getElementById('submit-btn');
+        const errorEl = document.getElementById('error-message');
+        const email = document.getElementById('email').value.trim();
+
+        // Basic validation
+        if (!email || !email.includes('@')) {
+            showError('Please enter a valid email address.');
+            return;
+        }
+
+        btn.classList.add('loading');
+        btn.disabled = true;
+        errorEl.style.display = 'none';
+
+        // ── PAYMENT LINK REDIRECT (simplest — no server needed) ──
+        // 1. Create a Payment Link in your Stripe dashboard
+        // 2. Paste the URL below and uncomment:
+        //
+        // window.location.href = 'https://buy.stripe.com/YOUR_PAYMENT_LINK';
+        // return;
+
+        // ── OR: Call your server to create a Checkout Session ──
+        // try {
+        //     const res = await fetch('/api/create-checkout-session', {
+        //         method: 'POST',
+        //         headers: { 'Content-Type': 'application/json' },
+        //         body: JSON.stringify({ email })
+        //     });
+        //     const { url } = await res.json();
+        //     window.location.href = url; // Redirect to Stripe-hosted checkout
+        // } catch (err) {
+        //     showError('Something went wrong. Please try again.');
+        //     btn.classList.remove('loading');
+        //     btn.disabled = false;
+        // }
+
+        // Demo mode: show success after 1.5s
+        setTimeout(() => {
+            document.getElementById('checkout-form-view').style.display = 'none';
+            document.getElementById('success-view').style.display = 'block';
+        }, 1500);
+    }
+
+    function showError(msg) {
+        const el = document.getElementById('error-message');
+        el.textContent = msg;
+        el.style.display = 'block';
+    }
+
+    // Run on load
+    initStripe();
+    </script>
+
+</body>
+</html>
